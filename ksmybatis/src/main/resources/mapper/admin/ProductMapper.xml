@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="ksmybatis.admin.product.mapper.ProductMapper"> 
+ 
+	<resultMap type="Product" id="productResultMap">
+		<id 	column="prod_cd" 		property="productCode" />
+		<result column="vend_cd" 		property="vendorCode" />
+		<result column="prod_name" 		property="productName" />
+		<result column="prod_untprc" 	property="productUnitPrice" />
+		<result column="prod_reg_date" 	property="productRegDate" />
+	</resultMap>
+	
+	<delete id="removeProductsByCode" parameterType="String">
+		/* 상품삭제(상품코드) */
+		delete 
+		from
+			products
+		where
+			prod_cd = #{productCode};	
+			
+	</delete>
+	
+	<delete id="removeProductsBySellerId" parameterType="string">
+		/* 판매자가 등록한 상품 삭제 */
+		delete
+			p
+		from
+			vendors v inner join products p
+			using (vend_cd)
+		where
+			v.vend_mbr_id = #{sellerId}; 
+	</delete>
+	
+		<update id="modifyProduct" parameterType="Product" >
+		/* 상품정보 수정 */
+		UPDATE products
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="vendorCode != null and vendorCode != ''">
+				vend_cd=#{vendorCode},
+			</if>
+			<if test="productName != null and productName != ''">
+				prod_name=#{productName},
+			</if>
+			<if test="productUnitPrice != null and productUnitPrice != ''">
+				prod_untprc=#{productUnitPrice},
+			</if>
+			<if test="productRegDate != null and productRegDate != ''">
+				prod_reg_date=#{productRegDate}
+			</if>			
+		</trim>
+		WHERE 
+			prod_cd=#{productCode};
+		</update>
+	
+		<select id="getProductInfoByCode" parameterType="String" resultMap="productResultMap">
+			/* 상품정보 조회 */
+			SELECT 
+				prod_cd, 
+				vend_cd, 
+				prod_name, 
+				IFNULL(prod_untprc, 0) AS prod_untprc, 
+				prod_reg_date
+			FROM 
+				products
+			WHERE
+				prod_cd = #{productCode};	
+		</select>
+		
+	<!-- selectKey -->
+	<!-- insert 태그 안쪽에서 선언 : insert, update, delete 작업 수행 전에 select 연산 필요 시 작성-->
+	<!-- select 연산 후 연산결과 domain(dto)의 특정 필드에 바인딩 -->
+	<!-- keyProperty : 바인딩 할 domain(dto)의 필드명 -->
+	<!-- resultType : 바인딩 할 데이터의 타입 -->
+	<!-- order : (BEFORD, AFTER) 수행순서 ex:insert 연산 전에 수행(BEFORE) -->
+		  
+	<insert id="addProduct" parameterType="Product">
+		<selectKey keyProperty="productCode" resultType="string" order="BEFORE">
+		/* 상품코드 자동증가 */
+		select
+			case
+			when count(*) = 0 then 'prod_1'
+			else
+				concat('prod_',max(cast(SUBSTRING_INDEX(p.PROD_CD, '_', -1) as unsigned))+1)
+			end as productCode	
+		from
+			PRODUCTS P;
+		</selectKey>
+		/* 상품등록 */
+		INSERT INTO products
+		(prod_cd, vend_cd, prod_name, prod_untprc, prod_reg_date)
+		VALUES
+		(#{productCode}, #{vendorCode}, #{productName}, #{productUnitPrice}, CURDATE());
+	</insert>
+	
+	<select id="getProductList" resultType="ksmybatis.admin.product.domain.Product">
+		/* 상품목록 조회 */
+		SELECT
+			prod_cd 		AS productCode, 
+			vend_cd 		AS vendorCode, 
+			prod_name 		AS productName, 
+			IFNULL(prod_untprc, 0) 	AS productUnitPrice, 
+			prod_reg_date 	AS productRegDate
+		FROM
+			products;
+	</select>
+ </mapper>
